@@ -39,15 +39,39 @@ func main() {
 		panic(ErrorInvalidRange)
 	}
 
-	fetchInvoices(id, startDate, endDate)
+	// Process the increment of invoices & request count on channels
+	requestChan := make(chan int)
+	invoiceChan := make(chan int)
+
+	// Wait for increment values on a goroutine
+	go processIncrements(requestChan, invoiceChan)
+
+	fetchInvoices(id, startDate, endDate, requestChan, invoiceChan)
 
 	wg.Wait()
+	close(requestChan)
+	close(invoiceChan)
+
 	fmt.Printf("%d invoices were found, using %d requests\n", invoiceCount, requestCount)
 }
 
-func fetchInvoices(id, start, end string) {
+func fetchInvoices(id, start, end string, requestChan, invoiceChan chan int) {
 	// Increment waitgroup count
 	wg.Add(1)
-	requestCount += 1
+	requestChan <- 1
+	defer wg.Done()
 	// TBD
+}
+
+// Read increments from channels
+func processIncrements(requestChan, invoiceChan chan int) {
+	select {
+	case <-requestChan:
+		requestCount += 1
+	case add, ok := <-invoiceChan:
+		if !ok {
+			break
+		}
+		invoiceCount += add
+	}
 }
