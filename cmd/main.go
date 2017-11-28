@@ -4,15 +4,23 @@ import (
 	"flag"
 	"fmt"
 	"sync"
-	// "time"
+	"time"
 )
 
 const (
+	// ErrorInvalidInput is returned when any required parameter is empty
 	ErrorInvalidInput = `Invalid input parameters… please recheck your input`
+	// ErrorInvalidRange is returned when trying to get the same date
 	ErrorInvalidRange = `Date range invalid, dates must not be equal`
+	// ErrorInvalidFormat is returned when dates did not conform the specified format
+	ErrorInvalidFormat = `Date format must be YYYY-MM-DD`
+	// ErrorInvalidStart is returned when start date is greater than end in range
+	ErrorInvalidStart = `Date range invalid, start must not be greater than end`
 	// API base url
 	baseURL       = `http://34.209.24.195/facturas`
 	requestFormat = baseURL + `?id=%s&start=%s&end=%s`
+	// Time format allowed
+	timeFmt = `2006-01-02`
 )
 
 var (
@@ -31,6 +39,9 @@ func init() {
 }
 
 func main() {
+	var start, end time.Time
+	var err error
+
 	if startDate == `` || endDate == `` || id == `` {
 		panic(ErrorInvalidInput)
 	}
@@ -46,7 +57,20 @@ func main() {
 	// Wait for increment values on a goroutine
 	go processIncrements(requestChan, invoiceChan)
 
-	fetchInvoices(id, startDate, endDate, requestChan, invoiceChan)
+	if start, err = time.Parse(timeFmt, startDate); err != nil {
+		panic(ErrorInvalidFormat)
+	}
+
+	if end, err = time.Parse(timeFmt, endDate); err != nil {
+		panic(ErrorInvalidFormat)
+	}
+
+	// Validate that start is < than end
+	if start.After(end) {
+		panic(ErrorInvalidStart)
+	}
+
+	fetchInvoices(id, start, end, requestChan, invoiceChan)
 
 	wg.Wait()
 	close(requestChan)
@@ -55,11 +79,11 @@ func main() {
 	fmt.Printf("%d invoices were found, using %d requests\n", invoiceCount, requestCount)
 }
 
-func fetchInvoices(id, start, end string, requestChan, invoiceChan chan int) {
+func fetchInvoices(id string, start, end time.Time, requestChan, invoiceChan chan int) {
 	// Increment waitgroup count
+	defer wg.Done()
 	wg.Add(1)
 	requestChan <- 1
-	defer wg.Done()
 	// TBD
 }
 
