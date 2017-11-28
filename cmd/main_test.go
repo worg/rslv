@@ -6,7 +6,7 @@ import (
 )
 
 func TestResuelve(t *testing.T) {
-	Convey(`On running the app`, t, func() {
+	Convey(`When running the app`, t, func() {
 		Convey(`Input must not be empty`, func() {
 			So(main, ShouldPanicWith, ErrorInvalidInput)
 		})
