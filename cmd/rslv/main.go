@@ -18,7 +18,7 @@ const (
 	ErrorInvalidFormat = `Date format must be YYYY-MM-DD`
 	// ErrorInvalidStart is returned when start date is greater than end in range
 	ErrorInvalidStart = `Date range invalid, start must not be greater than end`
-	// ErrorApiLimit
+	// ErrorApiLimit is returned when we must stop making calls
 	ErrorAPILimit = `API limit reached`
 	// API base url
 	baseURL       = `http://34.209.24.195/facturas`
