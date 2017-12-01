@@ -26,24 +26,26 @@ func TestResuelve(t *testing.T) {
 			So(main, ShouldPanicWith, ErrorInvalidFormat)
 		})
 
-		Convey(`When making requests`, func() {
-			startDate = `2017-01-01`
-			endDate = `2017-03-01`
-			id = `1`
+		/*
+			Convey(`When making requests`, func() {
+				startDate = `2017-01-01`
+				endDate = `2017-03-01`
+				id = `1`
 
-			reset := func() {
-				requestCount = 0
-				invoiceCount = 0
-			}
-			reset()
+				reset := func() {
+					requestCount = 0
+					invoiceCount = 0
+				}
+				reset()
 
-			Convey(`Counters should start on zero`, func() {
-				So(requestCount, ShouldEqual, 0)
-				So(invoiceCount, ShouldEqual, 0)
+				Convey(`Counters should start on zero`, func() {
+					So(requestCount, ShouldEqual, 0)
+					So(invoiceCount, ShouldEqual, 0)
+				})
+
+				Reset(reset)
 			})
-
-			Reset(reset)
-		})
+		*/
 
 		Convey(`Utility functions`, func() {
 			date, _ := time.Parse(timeFmt, `2017-01-01`)
@@ -61,6 +63,32 @@ func TestResuelve(t *testing.T) {
 			Convey(`GetDaysBetween should return the number of days elapsed in two specified dates`, func() {
 				endDate, _ := time.Parse(timeFmt, `2017-01-30`)
 				So(GetDaysBetween(date, endDate), ShouldEqual, 29)
+			})
+
+			Convey(`SplitJob should send two jobs with the daterange in halves`, func() {
+				c := make(chan job)
+				endDate, _ := time.Parse(timeFmt, `2017-01-30`)
+
+				go SplitJob(c, job{id: `1`, start: date, end: endDate})
+				first := <-c
+				second := <-c
+
+				So(first.start, ShouldEqual, date)
+				So(first.end, ShouldEqual, AddDays(endDate, -15))
+
+				So(second.start, ShouldEqual, AddDays(date, 15))
+				So(second.end, ShouldEqual, endDate)
+			})
+
+			Convey(`SplitJob should send a single job when dates are too close`, func() {
+				c := make(chan job)
+				endDate, _ := time.Parse(timeFmt, `2017-01-03`)
+
+				go SplitJob(c, job{id: `1`, start: date, end: endDate})
+				first := <-c
+
+				So(first.start, ShouldEqual, AddDays(date, 1))
+				So(first.end, ShouldEqual, endDate)
 			})
 		})
 
