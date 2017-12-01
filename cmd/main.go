@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"sync/atomic"
@@ -16,17 +17,20 @@ const (
 	ErrorInvalidFormat = `Date format must be YYYY-MM-DD`
 	// ErrorInvalidStart is returned when start date is greater than end in range
 	ErrorInvalidStart = `Date range invalid, start must not be greater than end`
-	// ErrorExceededCount is returned when API returns a `more than… found` message
-	ErrorExceededCount = `API limit reached`
+	// ErrorApiLimit
+	ErrorAPILimit = `API limit reached`
 	// API base url
 	baseURL       = `http://34.209.24.195/facturas`
-	requestFormat = baseURL + `?id=%s&start=%s&end=%s`
+	requestFormat = baseURL + `?id=%s&start=%s&finish=%s`
 	// Time format allowed
 	timeFmt = `2006-01-02`
 )
 
 var (
 	startDate, endDate, id string
+	debug                  bool
+	// ErrorExceededCount is returned when API returns a `more than… found` message
+	ErrorExceededCount = errors.New(`API limit reached`)
 )
 
 // Job holds pending request data
@@ -38,7 +42,7 @@ type job struct {
 func init() {
 	// I use golang's flag to parse command line options
 	flag.StringVar(&startDate, `start`, ``, `Start of date range to find invoices [YYYY-MM-DD]`)
-	flag.StringVar(&endDate, `end`, ``, `End of date range to find invoices [YYYY-MM-DD]`)
+	flag.StringVar(&endDate, `finish`, ``, `End of date range to find invoices [YYYY-MM-DD]`)
 	flag.StringVar(&id, `id`, ``, `User id to fetch invoices`)
 	flag.Parse()
 }
@@ -105,8 +109,9 @@ func processData(c chan job) (int, int) {
 			rc++
 			atomic.StoreInt32(&requestCount, rc)
 
-			count, err := fetchInvoices(j.id, j.start, j.end)
+			count, err := FetchInvoices(j.id, j.start, j.end)
 			go func() {
+				time.Sleep(1)
 				done <- struct{}{}
 			}()
 
@@ -163,12 +168,6 @@ func SplitJob(c chan job, j job) {
 		start: AddDays(end, -half),
 		end:   end,
 	}
-}
-
-// fetchInvoices gets the invoice count [or error] for a particular time span
-// returns error when API fails
-func fetchInvoices(id string, start, end time.Time) (int, error) {
-	return 1, nil
 }
 
 // GetDaysBetween returns the days elapsed within two dates

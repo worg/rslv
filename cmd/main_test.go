@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
+	"gopkg.in/jarcoal/httpmock.v1"
+	"net/http"
 	"testing"
 	"time"
 )
@@ -26,26 +29,77 @@ func TestResuelve(t *testing.T) {
 			So(main, ShouldPanicWith, ErrorInvalidFormat)
 		})
 
-		/*
-			Convey(`When making requests`, func() {
-				startDate = `2017-01-01`
-				endDate = `2017-03-01`
-				id = `1`
+		Convey(`When making requests`, func() {
+			startDate = `2017-01-01`
+			endDate = `2017-03-01`
+			id = `1`
+			start, _ := time.Parse(timeFmt, startDate)
+			end, _ := time.Parse(timeFmt, endDate)
 
-				reset := func() {
-					requestCount = 0
-					invoiceCount = 0
-				}
-				reset()
+			httpmock.Activate() // Enable http mocker
 
-				Convey(`Counters should start on zero`, func() {
-					So(requestCount, ShouldEqual, 0)
-					So(invoiceCount, ShouldEqual, 0)
+			Convey(`FetchInvoices should return the invoice count on valid response`, func() {
+				// Fake the http response
+				httpmock.RegisterResponder(`GET`, baseURL, httpmock.NewStringResponder(200, `40`))
+
+				c, err := FetchInvoices(id, start, end)
+				So(err, ShouldEqual, nil)
+				So(c, ShouldEqual, 40)
+
+				Reset(httpmock.Reset)
+			})
+
+			Convey(`FetchInvoices should handle a truncated results response`, func() {
+				apiCalls := 0
+				// Fake the http response
+				httpmock.RegisterResponder(`GET`, baseURL, func(r *http.Request) (*http.Response, error) {
+					apiCalls++
+
+					// Fail when apiCalls is < 2
+					if apiCalls < 2 {
+						return httpmock.NewStringResponse(200, `Hay más de 100 resultados`), nil
+					}
+
+					return httpmock.NewStringResponse(200, fmt.Sprint(apiCalls+1)), nil
 				})
 
-				Reset(reset)
+				c, err := FetchInvoices(id, start, end)
+				So(err, ShouldEqual, ErrorExceededCount)
+				So(c, ShouldEqual, 0)
+
+				c, err = FetchInvoices(id, start, end)
+				So(err, ShouldEqual, nil)
+				So(c, ShouldEqual, 3)
+
+				Reset(httpmock.Reset)
 			})
-		*/
+
+			Convey(`FetchInvoices should handle API rate limits`, func() {
+				httpmock.RegisterResponder(`GET`, baseURL, httpmock.NewStringResponder(400, `"API limit reached"`))
+
+				testFn := func() {
+					FetchInvoices(id, start, end)
+				}
+
+				So(testFn, ShouldPanicWith, ErrorAPILimit)
+
+				Reset(httpmock.Reset)
+			})
+
+			Convey(`FetchInvoices should handle unexpected errors`, func() {
+				httpmock.RegisterResponder(`GET`, baseURL, httpmock.NewStringResponder(500, `"LOL"`))
+
+				testFn := func() {
+					FetchInvoices(id, start, end)
+				}
+
+				So(testFn, ShouldNotPanicWith, ErrorAPILimit)
+
+				Reset(httpmock.Reset)
+			})
+
+			Reset(httpmock.DeactivateAndReset)
+		})
 
 		Convey(`Utility functions`, func() {
 			date, _ := time.Parse(timeFmt, `2017-01-01`)
