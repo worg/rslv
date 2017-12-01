@@ -23,9 +23,12 @@ func TestResuelve(t *testing.T) {
 		})
 
 		Convey(`Dates must comply with the specified format`, func() {
-			startDate = `2017 Jan 01`
-			endDate = `2017 Jan 03`
 			id = `1`
+
+			endDate = `2017 Jan 03`
+			So(main, ShouldPanicWith, ErrorInvalidFormat)
+
+			startDate = `2017 Jan 01`
 			So(main, ShouldPanicWith, ErrorInvalidFormat)
 		})
 
