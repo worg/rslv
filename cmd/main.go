@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"sync/atomic"
@@ -16,8 +17,6 @@ const (
 	ErrorInvalidFormat = `Date format must be YYYY-MM-DD`
 	// ErrorInvalidStart is returned when start date is greater than end in range
 	ErrorInvalidStart = `Date range invalid, start must not be greater than end`
-	// ErrorExceededCount is returned when API returns a `more than… found` message
-	ErrorExceededCount = `API limit reached`
 	// API base url
 	baseURL       = `http://34.209.24.195/facturas`
 	requestFormat = baseURL + `?id=%s&start=%s&end=%s`
@@ -27,6 +26,8 @@ const (
 
 var (
 	startDate, endDate, id string
+	// ErrorExceededCount is returned when API returns a `more than… found` message
+	ErrorExceededCount = errors.New(`API limit reached`)
 )
 
 // Job holds pending request data
@@ -105,7 +106,7 @@ func processData(c chan job) (int, int) {
 			rc++
 			atomic.StoreInt32(&requestCount, rc)
 
-			count, err := fetchInvoices(j.id, j.start, j.end)
+			count, err := FetchInvoices(j.id, j.start, j.end)
 			go func() {
 				done <- struct{}{}
 			}()
@@ -163,12 +164,6 @@ func SplitJob(c chan job, j job) {
 		start: AddDays(end, -half),
 		end:   end,
 	}
-}
-
-// fetchInvoices gets the invoice count [or error] for a particular time span
-// returns error when API fails
-func fetchInvoices(id string, start, end time.Time) (int, error) {
-	return 1, nil
 }
 
 // GetDaysBetween returns the days elapsed within two dates
