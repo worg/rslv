@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -16,6 +16,8 @@ const (
 	ErrorInvalidFormat = `Date format must be YYYY-MM-DD`
 	// ErrorInvalidStart is returned when start date is greater than end in range
 	ErrorInvalidStart = `Date range invalid, start must not be greater than end`
+	// ErrorExceededCount is returned when API returns a `more than… found` message
+	ErrorExceededCount = `API limit reached`
 	// API base url
 	baseURL       = `http://34.209.24.195/facturas`
 	requestFormat = baseURL + `?id=%s&start=%s&end=%s`
@@ -24,14 +26,17 @@ const (
 )
 
 var (
-	startDate, endDate, id     string
-	requestCount, invoiceCount int
-	// I'll use a waitgroup to wait for requests to be processed
-	wg sync.WaitGroup
+	startDate, endDate, id string
 )
 
+// Job holds pending request data
+type job struct {
+	id         string
+	start, end time.Time
+}
+
 func init() {
-	// I use golang flag to parse command line options
+	// I use golang's flag to parse command line options
 	flag.StringVar(&startDate, `start`, ``, `Start of date range to find invoices [YYYY-MM-DD]`)
 	flag.StringVar(&endDate, `end`, ``, `End of date range to find invoices [YYYY-MM-DD]`)
 	flag.StringVar(&id, `id`, ``, `User id to fetch invoices`)
@@ -50,13 +55,6 @@ func main() {
 		panic(ErrorInvalidRange)
 	}
 
-	// Process the increment of invoices & request count on channels
-	requestChan := make(chan int)
-	invoiceChan := make(chan int)
-
-	// Wait for increment values on a goroutine
-	go processIncrements(requestChan, invoiceChan)
-
 	if start, err = time.Parse(timeFmt, startDate); err != nil {
 		panic(ErrorInvalidFormat)
 	}
@@ -70,32 +68,115 @@ func main() {
 		panic(ErrorInvalidStart)
 	}
 
-	fetchInvoices(id, start, end, requestChan, invoiceChan)
+	c := make(chan job, 1)
+	c <- job{
+		id:    id,
+		start: start,
+		end:   end,
+	}
 
-	wg.Wait()
-	close(requestChan)
-	close(invoiceChan)
+	invoiceCount, requestCount := processData(c)
 
 	fmt.Printf("%d invoices were found, using %d requests\n", invoiceCount, requestCount)
 }
 
-func fetchInvoices(id string, start, end time.Time, requestChan, invoiceChan chan int) {
-	// Increment waitgroup count
-	defer wg.Done()
-	wg.Add(1)
-	requestChan <- 1
-	// TBD
+func processData(c chan job) (int, int) {
+	done := make(chan struct{})
+	var invoiceCount int
+	// we'll use int32 to keep an atomic count
+	// this is intended to prevent race conditions
+	var doneCount, requestCount int32
+	var stop = false // stop flag [as we don't know the exact number of iterations]
+
+	defer func() {
+		// close channels at the end
+		close(done)
+		close(c)
+	}()
+
+	for !stop {
+		select {
+		case j, ok := <-c:
+			if !ok {
+				stop = true
+			}
+
+			rc := atomic.LoadInt32(&requestCount)
+			rc++
+			atomic.StoreInt32(&requestCount, rc)
+
+			count, err := fetchInvoices(j.id, j.start, j.end)
+			go func() {
+				done <- struct{}{}
+			}()
+
+			if err != nil {
+				// split job into two new ranges
+				go SplitJob(c, j)
+				continue
+			}
+			invoiceCount += count
+
+		case <-done:
+			dc := atomic.LoadInt32(&doneCount)
+			rc := atomic.LoadInt32(&requestCount)
+			atomic.StoreInt32(&doneCount, dc+1)
+			dc++
+			if rc == dc {
+				stop = true
+			}
+		}
+	}
+
+	return invoiceCount, int(requestCount)
 }
 
-// Read increments from channels
-func processIncrements(requestChan, invoiceChan chan int) {
-	select {
-	case <-requestChan:
-		requestCount += 1
-	case add, ok := <-invoiceChan:
-		if !ok {
-			break
+// SplitJob takes a job and creates two new from
+// half ranges of the original job date or a single
+// new job when dates are too close
+func SplitJob(c chan job, j job) {
+	start := j.start
+	end := j.end
+	id := j.id
+
+	daysBetween := GetDaysBetween(start, end)
+
+	// do we have a very short time span?
+	if daysBetween <= 3 {
+		c <- job{
+			id:    id,
+			start: AddDays(start, 1),
+			end:   end,
 		}
-		invoiceCount += add
+		return
 	}
+
+	half := daysBetween / 2
+	c <- job{
+		id:    id,
+		start: start,
+		end:   AddDays(start, half),
+	}
+
+	c <- job{
+		id:    id,
+		start: AddDays(end, -half),
+		end:   end,
+	}
+}
+
+// fetchInvoices gets the invoice count [or error] for a particular time span
+// returns error when API fails
+func fetchInvoices(id string, start, end time.Time) (int, error) {
+	return 1, nil
+}
+
+// GetDaysBetween returns the days elapsed within two dates
+func GetDaysBetween(start, end time.Time) int {
+	return int(end.Sub(start).Hours() / 24)
+}
+
+// AddDays returns a date with n days added [may be negative]
+func AddDays(date time.Time, days int) time.Time {
+	return date.Add(time.Hour * time.Duration(24*days))
 }
