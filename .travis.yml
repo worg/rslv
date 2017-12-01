@@ -1,6 +1,6 @@
 language: go
 
-go_import_path: github.com/worg/rslv/cmd
+go_import_path: github.com/worg/rslv/cmd/rslv
 
 go:
   - 1.4
