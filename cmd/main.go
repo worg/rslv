@@ -17,15 +17,18 @@ const (
 	ErrorInvalidFormat = `Date format must be YYYY-MM-DD`
 	// ErrorInvalidStart is returned when start date is greater than end in range
 	ErrorInvalidStart = `Date range invalid, start must not be greater than end`
+	// ErrorApiLimit
+	ErrorAPILimit = `API limit reached`
 	// API base url
 	baseURL       = `http://34.209.24.195/facturas`
-	requestFormat = baseURL + `?id=%s&start=%s&end=%s`
+	requestFormat = baseURL + `?id=%s&start=%s&finish=%s`
 	// Time format allowed
 	timeFmt = `2006-01-02`
 )
 
 var (
 	startDate, endDate, id string
+	debug                  bool
 	// ErrorExceededCount is returned when API returns a `more than… found` message
 	ErrorExceededCount = errors.New(`API limit reached`)
 )
@@ -39,7 +42,7 @@ type job struct {
 func init() {
 	// I use golang's flag to parse command line options
 	flag.StringVar(&startDate, `start`, ``, `Start of date range to find invoices [YYYY-MM-DD]`)
-	flag.StringVar(&endDate, `end`, ``, `End of date range to find invoices [YYYY-MM-DD]`)
+	flag.StringVar(&endDate, `finish`, ``, `End of date range to find invoices [YYYY-MM-DD]`)
 	flag.StringVar(&id, `id`, ``, `User id to fetch invoices`)
 	flag.Parse()
 }
@@ -108,6 +111,7 @@ func processData(c chan job) (int, int) {
 
 			count, err := FetchInvoices(j.id, j.start, j.end)
 			go func() {
+				time.Sleep(1)
 				done <- struct{}{}
 			}()
 
