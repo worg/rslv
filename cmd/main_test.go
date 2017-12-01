@@ -34,6 +34,8 @@ func TestResuelve(t *testing.T) {
 			endDate = `2017-03-01`
 			id = `1`
 
+			httpmock.Activate() // Enable http mocker
+
 			Convey(`FetchInvoices should return the invoice count on valid response`, func() {
 				// Fake the http response
 				httpmock.RegisterResponder(`GET`, baseURL, httpmock.NewStringResponder(200, `40`))
@@ -43,24 +45,26 @@ func TestResuelve(t *testing.T) {
 
 				c, err := FetchInvoices(id, start, end)
 				So(err, ShouldEqual, nil)
-				So(c, ShouldEqual, 4)
+				So(c, ShouldEqual, 40)
+
+				Reset(httpmock.Reset)
 			})
 
 			Convey(`FetchInvoices should handle a truncated results response`, func() {
-				// Fake the http response
 				apiCalls := 0
+				start, _ := time.Parse(timeFmt, startDate)
+				end, _ := time.Parse(timeFmt, endDate)
+				// Fake the http response
 				httpmock.RegisterResponder(`GET`, baseURL, func(r *http.Request) (*http.Response, error) {
 					apiCalls++
+
 					// Fail when apiCalls is < 2
 					if apiCalls < 2 {
 						return httpmock.NewStringResponse(200, `Hay más de 100 resultados`), nil
 					}
 
-					return httpmock.NewStringResponse(200, fmt.Sprint(apiCalls)), nil
+					return httpmock.NewStringResponse(200, fmt.Sprint(apiCalls+1)), nil
 				})
-
-				start, _ := time.Parse(timeFmt, startDate)
-				end, _ := time.Parse(timeFmt, endDate)
 
 				c, err := FetchInvoices(id, start, end)
 				So(err, ShouldEqual, ErrorExceededCount)
@@ -68,7 +72,9 @@ func TestResuelve(t *testing.T) {
 
 				c, err = FetchInvoices(id, start, end)
 				So(err, ShouldEqual, nil)
-				So(c, ShouldEqual, 2)
+				So(c, ShouldEqual, 3)
+
+				Reset(httpmock.Reset)
 			})
 		})
 
