@@ -15,6 +15,8 @@ const (
 	ErrorInvalidFormat = `Date format must be YYYY-MM-DD`
 	// ErrorInvalidStart is returned when start date is greater than end in range
 	ErrorInvalidStart = `Date range invalid, start must not be greater than end`
+	// ErrorExceededCount is returned when API returns a `more than… found` message
+	ErrorExceededCount = `API limit reached`
 	// API base url
 	baseURL       = `http://34.209.24.195/facturas`
 	requestFormat = baseURL + `?id=%s&start=%s&end=%s`
@@ -61,4 +63,21 @@ func main() {
 	}
 
 	fmt.Printf("%d invoices were found, using %d requests\n", invoiceCount, requestCount)
+}
+
+// fetchInvoices gets the invoice count [or error] for a particular time span
+// returns error when API
+func fetchInvoices(id string, start, end time.Time) (int, error) {
+	// TODO: really implement the method
+	return 0, nil
+}
+
+// GetDaysBetween returns the days elapsed within two dates
+func GetDaysBetween(start, end time.Time) int {
+	return int(end.Sub(start).Hours() / 24)
+}
+
+// AddDays returns a date with n days added [may be negative]
+func AddDays(date time.Time, days int) time.Time {
+	return date.Add(time.Hour * time.Duration(24*days))
 }

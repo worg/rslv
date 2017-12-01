@@ -3,6 +3,7 @@ package main
 import (
 	. "github.com/smartystreets/goconvey/convey"
 	"testing"
+	"time"
 )
 
 func TestResuelve(t *testing.T) {
@@ -42,6 +43,25 @@ func TestResuelve(t *testing.T) {
 			})
 
 			Reset(reset)
+		})
+
+		Convey(`Utility functions`, func() {
+			date, _ := time.Parse(timeFmt, `2017-01-01`)
+
+			Convey(`AddDays should increment a date day count when receiving a positive number`, func() {
+				resultDate, _ := time.Parse(timeFmt, `2017-01-04`)
+				So(AddDays(date, 3), ShouldEqual, resultDate)
+			})
+
+			Convey(`AddDays should decrement a date when receiving a negative number`, func() {
+				resultDate, _ := time.Parse(timeFmt, `2016-12-29`)
+				So(AddDays(date, -3), ShouldEqual, resultDate)
+			})
+
+			Convey(`GetDaysBetween should return the number of days elapsed in two specified dates`, func() {
+				endDate, _ := time.Parse(timeFmt, `2017-01-30`)
+				So(GetDaysBetween(date, endDate), ShouldEqual, 29)
+			})
 		})
 
 	})
