@@ -41,7 +41,7 @@ func FetchInvoices(id string, start, end time.Time) (int, error) {
 
 	if debug {
 		// we spawn a goroutine to prevent IO blocking
-		go fmt.Println(`RQ:`, stringBody, url)
+		go fmt.Printf("-- REQUEST: %q \n - RESPONSE: %q \n\n", url, stringBody)
 	}
 	// try to get the count from the response body
 	count, err := strconv.Atoi(stringBody)

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"sync/atomic"
 	"time"
 )
@@ -45,6 +46,21 @@ func init() {
 	flag.StringVar(&endDate, `finish`, ``, `End of date range to find invoices [YYYY-MM-DD]`)
 	flag.StringVar(&id, `id`, ``, `User id to fetch invoices`)
 	flag.Parse()
+
+	// fallback load data from ENV vars
+	if startDate == `` {
+		os.Getenv(`START_DATE`)
+	}
+
+	if endDate == `` {
+		os.Getenv(`END_DATE`)
+	}
+
+	if id == `` {
+		os.Getenv(`USER_ID`)
+	}
+
+	debug = os.Getenv(`RSLV_DEBUG`) != ``
 }
 
 func main() {
