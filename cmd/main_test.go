@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
+	"gopkg.in/jarcoal/httpmock.v1"
+	"net/http"
 	"testing"
 	"time"
 )
@@ -26,26 +29,48 @@ func TestResuelve(t *testing.T) {
 			So(main, ShouldPanicWith, ErrorInvalidFormat)
 		})
 
-		/*
-			Convey(`When making requests`, func() {
-				startDate = `2017-01-01`
-				endDate = `2017-03-01`
-				id = `1`
+		Convey(`When making requests`, func() {
+			startDate = `2017-01-01`
+			endDate = `2017-03-01`
+			id = `1`
 
-				reset := func() {
-					requestCount = 0
-					invoiceCount = 0
-				}
-				reset()
+			Convey(`FetchInvoices should return the invoice count on valid response`, func() {
+				// Fake the http response
+				httpmock.RegisterResponder(`GET`, baseURL, httpmock.NewStringResponder(200, `40`))
 
-				Convey(`Counters should start on zero`, func() {
-					So(requestCount, ShouldEqual, 0)
-					So(invoiceCount, ShouldEqual, 0)
+				start, _ := time.Parse(timeFmt, startDate)
+				end, _ := time.Parse(timeFmt, endDate)
+
+				c, err := FetchInvoices(id, start, end)
+				So(err, ShouldEqual, nil)
+				So(c, ShouldEqual, 4)
+			})
+
+			Convey(`FetchInvoices should handle a truncated results response`, func() {
+				// Fake the http response
+				apiCalls := 0
+				httpmock.RegisterResponder(`GET`, baseURL, func(r *http.Request) (*http.Response, error) {
+					apiCalls++
+					// Fail when apiCalls is < 2
+					if apiCalls < 2 {
+						return httpmock.NewStringResponse(200, `Hay más de 100 resultados`), nil
+					}
+
+					return httpmock.NewStringResponse(200, fmt.Sprint(apiCalls)), nil
 				})
 
-				Reset(reset)
+				start, _ := time.Parse(timeFmt, startDate)
+				end, _ := time.Parse(timeFmt, endDate)
+
+				c, err := FetchInvoices(id, start, end)
+				So(err, ShouldEqual, ErrorExceededCount)
+				So(c, ShouldEqual, 0)
+
+				c, err = FetchInvoices(id, start, end)
+				So(err, ShouldEqual, nil)
+				So(c, ShouldEqual, 2)
 			})
-		*/
+		})
 
 		Convey(`Utility functions`, func() {
 			date, _ := time.Parse(timeFmt, `2017-01-01`)
