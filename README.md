@@ -26,8 +26,8 @@ I'll assume the user has docker in her/his system.
 | Option | Environment Variable | Command Line Flag | Description                          | Format       |
 | --     | :--:                 | :--:              | :--:                                 | :--:         |
 | ID     | USER_ID              | id                | User id to fetch invoices            | GUID         |
-| Start  | START_DATE           | finish            | End of date range to find invoices   | [YYYY-MM-DD] |
-| Finish | END_DATE             | start             | Start of date range to find invoices | [YYYY-MM-DD] |
+| Start  | START_DATE           | finish            | Start of date range to find invoices | [YYYY-MM-DD] |
+| Finish | END_DATE             | start             | End of date range to find invoices   | [YYYY-MM-DD] |
 
 
 ### Building the image
