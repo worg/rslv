@@ -73,3 +73,15 @@ Executing with `RSLV_DEBUG` environment variable distinct of empty string will o
  - RESPONSE: "HTTP_RESPONSE"
 ```
 
+## Testing
+
+Test results are available on travis-ci [see badge], alternatively one can run locally the tests.
+Assuming a working golang setup:
+
+* `cd cmd/rslv` from the repository root
+* `go get -t ./...`  to fetch the project dependencies
+* `go test -v -cover` to display the test results using the command line
+* `goconvey -cover . ` to display test results using the browser
+
+
+
